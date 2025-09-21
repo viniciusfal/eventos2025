@@ -15,19 +15,23 @@ import (
 	"eventos-backend/internal/domain/tenant"
 	"eventos-backend/internal/domain/user"
 	jwtService "eventos-backend/internal/infrastructure/auth/jwt"
+	"eventos-backend/internal/infrastructure/monitoring"
 	"eventos-backend/internal/interfaces/http/handlers"
 	"eventos-backend/internal/interfaces/http/middleware"
 	"eventos-backend/internal/interfaces/http/responses"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 )
 
 // Router representa o roteador principal da aplicação
 type Router struct {
-	engine *gin.Engine
-	logger *zap.Logger
-	db     *sql.DB
+	engine             *gin.Engine
+	logger             *zap.Logger
+	db                 *sql.DB
+	healthCheckHandler *monitoring.HealthCheckHandler
 }
 
 // Config contém as configurações do router
@@ -60,10 +64,14 @@ func New(cfg Config) *Router {
 	// Criar engine do Gin
 	engine := gin.New()
 
+	// Criar handler de health check
+	healthCheckHandler := monitoring.NewHealthCheckHandler()
+
 	router := &Router{
-		engine: engine,
-		logger: cfg.Logger,
-		db:     cfg.DB,
+		engine:             engine,
+		logger:             cfg.Logger,
+		db:                 cfg.DB,
+		healthCheckHandler: healthCheckHandler,
 	}
 
 	// Configurar middleware global
@@ -96,6 +104,9 @@ func (r *Router) setupMiddleware() {
 
 	// Request timeout middleware
 	r.engine.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+	// Tracing middleware
+	r.engine.Use(middleware.TracingMiddleware())
 }
 
 // setupRoutes configura todas as rotas da aplicação
@@ -129,8 +140,14 @@ func (r *Router) setupRoutes(cfg Config) {
 
 // setupBasicRoutes configura rotas básicas (health, info, etc.)
 func (r *Router) setupBasicRoutes() {
-	// Health check
-	r.engine.GET("/health", r.healthCheck)
+	// Health checks
+	r.engine.GET("/health", r.healthCheckHandler.HealthCheck)
+	r.engine.GET("/ready", r.healthCheckHandler.ReadinessCheck)
+	r.engine.GET("/live", r.healthCheckHandler.LivenessCheck)
+	r.engine.GET("/metrics", r.healthCheckHandler.Metrics)
+
+	// Documentação Swagger
+	r.engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Informações da API
 	r.engine.GET("/", r.apiInfo)

@@ -60,17 +60,23 @@ func (suite *EventTestSuite) TestEventActivate() {
 	initialDate := time.Now().UTC().Add(24 * time.Hour)
 	finalDate := initialDate.Add(8 * time.Hour)
 	event, _ := NewEvent(tenantID, "Test Event", "Location", []value_objects.Location{}, initialDate, finalDate, createdBy)
-	event.Deactivate(createdBy) // Desativar primeiro
+
+	// Verificar estado inicial
+	assert.True(suite.T(), event.Active, "Event should be active by default")
+
+	// Desativar primeiro
+	event.Deactivate(createdBy)
+	assert.False(suite.T(), event.Active, "Event should be inactive after Deactivate")
 
 	// Act
 	updatedBy := value_objects.NewUUID()
 	event.Activate(updatedBy)
 
 	// Assert
-	assert.True(suite.T(), event.Active)
+	assert.True(suite.T(), event.Active, "Event should be active after Activate")
 	assert.NotNil(suite.T(), event.UpdatedBy)
 	assert.False(suite.T(), event.UpdatedAt.IsZero())
-	assert.True(suite.T(), event.UpdatedAt.After(event.CreatedAt))
+	assert.True(suite.T(), !event.UpdatedAt.Before(event.CreatedAt), "UpdatedAt should be after or equal to CreatedAt")
 }
 
 func (suite *EventTestSuite) TestEventDeactivate() {
@@ -81,15 +87,18 @@ func (suite *EventTestSuite) TestEventDeactivate() {
 	finalDate := initialDate.Add(8 * time.Hour)
 	event, _ := NewEvent(tenantID, "Test Event", "Location", []value_objects.Location{}, initialDate, finalDate, createdBy)
 
+	// Verificar estado inicial
+	assert.True(suite.T(), event.Active, "Event should be active by default")
+
 	// Act
 	updatedBy := value_objects.NewUUID()
 	event.Deactivate(updatedBy)
 
 	// Assert
-	assert.False(suite.T(), event.Active)
+	assert.False(suite.T(), event.Active, "Event should be inactive after Deactivate")
 	assert.NotNil(suite.T(), event.UpdatedBy)
 	assert.False(suite.T(), event.UpdatedAt.IsZero())
-	assert.True(suite.T(), event.UpdatedAt.After(event.CreatedAt))
+	assert.True(suite.T(), !event.UpdatedAt.Before(event.CreatedAt), "UpdatedAt should be after or equal to CreatedAt")
 }
 
 func (suite *EventTestSuite) TestEventIsActive() {

@@ -175,15 +175,14 @@ func isValidEmail(email string) bool {
 	return hasDotAfterAt
 }
 
-// isValidEmailImproved faz uma validação mais robusta de email
-func isValidEmailImproved(email string) bool {
+// IsValidEmailImproved faz uma validação mais robusta de email
+func IsValidEmailImproved(email string) bool {
 	if len(email) < 5 || len(email) > 255 {
 		return false
 	}
 
-	// Deve conter exatamente um @ e pelo menos um ponto
+	// Deve conter exatamente um @ e pelo menos um ponto após o @
 	atIndex := -1
-	dotCount := 0
 
 	for i, char := range email {
 		if char == '@' {
@@ -191,8 +190,6 @@ func isValidEmailImproved(email string) bool {
 				return false // Mais de um @
 			}
 			atIndex = i
-		} else if char == '.' {
-			dotCount++
 		}
 	}
 
@@ -201,13 +198,10 @@ func isValidEmailImproved(email string) bool {
 	}
 
 	// Deve ter pelo menos um ponto após o @
-	if dotCount == 0 {
-		return false
-	}
-
 	hasDotAfterAt := false
 	for i := atIndex + 1; i < len(email); i++ {
-		if email[i] == '.' {
+		if email[i] == '.' && i < len(email)-1 {
+			// Deve haver pelo menos um caractere após o ponto
 			hasDotAfterAt = true
 			break
 		}
