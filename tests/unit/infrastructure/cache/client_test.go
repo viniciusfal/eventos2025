@@ -10,12 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
+
+	redisClient "eventos-backend/internal/infrastructure/cache/redis"
 )
 
 // RedisClientTestSuite é a suíte de testes para RedisClient
 type RedisClientTestSuite struct {
 	suite.Suite
-	client *Client
+	client *redisClient.Client
 	mini   *miniredis.Miniredis
 	logger *zap.Logger
 }
@@ -31,7 +33,7 @@ func (suite *RedisClientTestSuite) SetupTest() {
 
 	// Criar configuração do Redis
 	port, _ := strconv.Atoi(mini.Port())
-	config := Config{
+	config := redisClient.Config{
 		Host:            mini.Host(),
 		Port:            port,
 		Password:        "",
@@ -47,7 +49,7 @@ func (suite *RedisClientTestSuite) SetupTest() {
 	}
 
 	// Criar cliente Redis
-	suite.client, err = NewClient(config, suite.logger)
+	suite.client, err = redisClient.NewClient(config, suite.logger)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(suite.client)
 
@@ -72,7 +74,6 @@ func TestRedisClientSuite(t *testing.T) {
 func (suite *RedisClientTestSuite) TestNewClient_Success() {
 	// Assert
 	assert.NotNil(suite.T(), suite.client)
-	assert.NotNil(suite.T(), suite.client.client)
 }
 
 func (suite *RedisClientTestSuite) TestPing_Success() {

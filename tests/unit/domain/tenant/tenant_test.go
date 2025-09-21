@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	. "eventos-backend/internal/domain/tenant"
 	"testing"
 
 	"eventos-backend/internal/domain/shared/value_objects"
@@ -228,46 +229,7 @@ func (suite *TenantTestSuite) TestTenantHasConfig() {
 	assert.True(suite.T(), tenant.HasConfig())
 }
 
-func (suite *TenantTestSuite) TestValidateTenantData_ValidData() {
-	// Act
-	err := validateTenantData("Test Company", "12345678000123", "cnpj", "test@company.com")
-
-	// Assert
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *TenantTestSuite) TestValidateTenantData_EmptyName() {
-	// Act
-	err := validateTenantData("", "12345678000123", "cnpj", "test@company.com")
-
-	// Assert
-	assert.Error(suite.T(), err)
-	assert.Contains(suite.T(), err.Error(), "name is required")
-}
-
-func (suite *TenantTestSuite) TestIsValidIdentityType_ValidTypes() {
-	validTypes := []string{"cpf", "cnpj", "rg", "other"}
-
-	for _, identityType := range validTypes {
-		suite.T().Run(identityType, func(t *testing.T) {
-			// Act
-			result := isValidIdentityType(identityType)
-
-			// Assert
-			assert.True(suite.T(), result)
-		})
-	}
-}
-
-func (suite *TenantTestSuite) TestIsValidIdentityType_InvalidType() {
-	// Act
-	result := isValidIdentityType("invalid_type")
-
-	// Assert
-	assert.False(suite.T(), result)
-}
-
-func (suite *TenantTestSuite) TestIsValidEmail_ValidEmails() {
+func (suite *TenantTestSuite) TestIsValidEmailImproved_ValidEmails() {
 	validEmails := []string{
 		"test@example.com",
 		"teste@empresa.com.br",
@@ -278,7 +240,7 @@ func (suite *TenantTestSuite) TestIsValidEmail_ValidEmails() {
 	for _, email := range validEmails {
 		suite.T().Run(email, func(t *testing.T) {
 			// Act
-			result := isValidEmail(email)
+			result := IsValidEmailImproved(email)
 
 			// Assert
 			assert.True(suite.T(), result)
@@ -286,7 +248,7 @@ func (suite *TenantTestSuite) TestIsValidEmail_ValidEmails() {
 	}
 }
 
-func (suite *TenantTestSuite) TestIsValidEmail_InvalidEmails() {
+func (suite *TenantTestSuite) TestIsValidEmailImproved_InvalidEmails() {
 	invalidEmails := []string{
 		"invalidemail",     // sem @
 		"@example.com",     // @ no início

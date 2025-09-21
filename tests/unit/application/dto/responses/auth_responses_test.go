@@ -1,6 +1,7 @@
 package responses
 
 import (
+	. "eventos-backend/internal/application/dto/responses"
 	"testing"
 	"time"
 

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	. "eventos-backend/internal/domain/event"
 	"eventos-backend/internal/domain/shared/value_objects"
 
 	"github.com/stretchr/testify/assert"

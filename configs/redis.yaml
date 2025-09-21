@@ -1,0 +1,19 @@
+# Configurações do Redis
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+  db: ${REDIS_DB:0}
+  
+  # Pool de conexões
+  max_retries: ${REDIS_MAX_RETRIES:3}
+  pool_size: ${REDIS_POOL_SIZE:10}
+  min_idle_conns: ${REDIS_MIN_IDLE_CONNS:5}
+  
+  # Timeouts
+  dial_timeout: ${REDIS_DIAL_TIMEOUT:5s}
+  read_timeout: ${REDIS_READ_TIMEOUT:3s}
+  write_timeout: ${REDIS_WRITE_TIMEOUT:3s}
+  
+  # Cache TTL padrão
+  default_ttl: ${REDIS_DEFAULT_TTL:1h}

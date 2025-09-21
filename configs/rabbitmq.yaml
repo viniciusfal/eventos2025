@@ -1,0 +1,25 @@
+# Configurações do RabbitMQ
+rabbitmq:
+  host: ${RABBITMQ_HOST:localhost}
+  port: ${RABBITMQ_PORT:5672}
+  user: ${RABBITMQ_USER:eventos_user}
+  password: ${RABBITMQ_PASSWORD:eventos_password}
+  vhost: ${RABBITMQ_VHOST:/}
+  
+  # Configurações de conexão
+  heartbeat: ${RABBITMQ_HEARTBEAT:60s}
+  connection_timeout: ${RABBITMQ_CONNECTION_TIMEOUT:30s}
+  
+  # Filas e Exchanges
+  exchanges:
+    events: "eventos.events"
+    notifications: "eventos.notifications"
+    
+  queues:
+    checkin: "eventos.checkin"
+    checkout: "eventos.checkout"
+    notifications: "eventos.notifications"
+    
+  # Consumer settings
+  prefetch_count: ${RABBITMQ_PREFETCH_COUNT:10}
+  auto_ack: ${RABBITMQ_AUTO_ACK:false}

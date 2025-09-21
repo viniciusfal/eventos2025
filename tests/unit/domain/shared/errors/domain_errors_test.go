@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	domainErrors "eventos-backend/internal/domain/shared/errors"
 )
 
 // DomainErrorsTestSuite é a suíte de testes para erros de domínio
@@ -24,7 +26,7 @@ func (suite *DomainErrorsTestSuite) TestNewDomainError() {
 	cause := errors.New("invalid input")
 
 	// Act
-	domainError := NewDomainError(errorType, message, cause)
+	domainError := domainErrors.NewDomainError(errorType, message, cause)
 
 	// Assert
 	assert.Equal(suite.T(), errorType, domainError.Type)
@@ -35,7 +37,7 @@ func (suite *DomainErrorsTestSuite) TestNewDomainError() {
 
 func (suite *DomainErrorsTestSuite) TestDomainError_Error() {
 	// Arrange
-	domainError := NewDomainError("VALIDATION_ERROR", "Dados inválidos", nil)
+	domainError := domainErrors.NewDomainError("VALIDATION_ERROR", "Dados inválidos", nil)
 
 	// Act
 	errorString := domainError.Error()
@@ -48,7 +50,7 @@ func (suite *DomainErrorsTestSuite) TestDomainError_Error() {
 func (suite *DomainErrorsTestSuite) TestDomainError_Error_WithCause() {
 	// Arrange
 	cause := errors.New("invalid input")
-	domainError := NewDomainError("VALIDATION_ERROR", "Dados inválidos", cause)
+	domainError := domainErrors.NewDomainError("VALIDATION_ERROR", "Dados inválidos", cause)
 
 	// Act
 	errorString := domainError.Error()
@@ -62,7 +64,7 @@ func (suite *DomainErrorsTestSuite) TestDomainError_Error_WithCause() {
 func (suite *DomainErrorsTestSuite) TestDomainError_Unwrap() {
 	// Arrange
 	cause := errors.New("root cause")
-	domainError := NewDomainError("VALIDATION_ERROR", "Dados inválidos", cause)
+	domainError := domainErrors.NewDomainError("VALIDATION_ERROR", "Dados inválidos", cause)
 
 	// Act
 	unwrapped := domainError.Unwrap()
@@ -73,7 +75,7 @@ func (suite *DomainErrorsTestSuite) TestDomainError_Unwrap() {
 
 func (suite *DomainErrorsTestSuite) TestWithContext() {
 	// Arrange
-	domainError := NewDomainError("VALIDATION_ERROR", "Dados inválidos", nil)
+	domainError := domainErrors.NewDomainError("VALIDATION_ERROR", "Dados inválidos", nil)
 
 	// Act
 	domainError.WithContext("field", "email").WithContext("value", "invalid-email")
@@ -85,7 +87,7 @@ func (suite *DomainErrorsTestSuite) TestWithContext() {
 
 func (suite *DomainErrorsTestSuite) TestNewNotFoundError() {
 	// Act
-	domainError := NewNotFoundError("User", "123")
+	domainError := domainErrors.NewNotFoundError("User", "123")
 
 	// Assert
 	assert.Equal(suite.T(), "NOT_FOUND", domainError.Type)
@@ -96,7 +98,7 @@ func (suite *DomainErrorsTestSuite) TestNewNotFoundError() {
 
 func (suite *DomainErrorsTestSuite) TestNewAlreadyExistsError() {
 	// Act
-	domainError := NewAlreadyExistsError("User", "email", "user@example.com")
+	domainError := domainErrors.NewAlreadyExistsError("User", "email", "user@example.com")
 
 	// Assert
 	assert.Equal(suite.T(), "ALREADY_EXISTS", domainError.Type)
@@ -108,7 +110,7 @@ func (suite *DomainErrorsTestSuite) TestNewAlreadyExistsError() {
 
 func (suite *DomainErrorsTestSuite) TestNewValidationError() {
 	// Act
-	domainError := NewValidationError("email", "invalid format")
+	domainError := domainErrors.NewValidationError("email", "invalid format")
 
 	// Assert
 	assert.Equal(suite.T(), "VALIDATION_ERROR", domainError.Type)
@@ -119,7 +121,7 @@ func (suite *DomainErrorsTestSuite) TestNewValidationError() {
 
 func (suite *DomainErrorsTestSuite) TestNewUnauthorizedError() {
 	// Act
-	domainError := NewUnauthorizedError("Access denied")
+	domainError := domainErrors.NewUnauthorizedError("Access denied")
 
 	// Assert
 	assert.Equal(suite.T(), "UNAUTHORIZED", domainError.Type)
@@ -128,7 +130,7 @@ func (suite *DomainErrorsTestSuite) TestNewUnauthorizedError() {
 
 func (suite *DomainErrorsTestSuite) TestNewForbiddenError() {
 	// Act
-	domainError := NewForbiddenError("User", "DELETE")
+	domainError := domainErrors.NewForbiddenError("User", "DELETE")
 
 	// Assert
 	assert.Equal(suite.T(), "FORBIDDEN", domainError.Type)
@@ -142,7 +144,7 @@ func (suite *DomainErrorsTestSuite) TestNewInternalError() {
 	cause := errors.New("database connection failed")
 
 	// Act
-	domainError := NewInternalError("Failed to connect to database", cause)
+	domainError := domainErrors.NewInternalError("Failed to connect to database", cause)
 
 	// Assert
 	assert.Equal(suite.T(), "INTERNAL_ERROR", domainError.Type)
@@ -152,21 +154,21 @@ func (suite *DomainErrorsTestSuite) TestNewInternalError() {
 
 func (suite *DomainErrorsTestSuite) TestPredefinedErrors() {
 	// Assert
-	assert.Equal(suite.T(), "resource not found", ErrNotFound.Error())
-	assert.Equal(suite.T(), "resource already exists", ErrAlreadyExists.Error())
-	assert.Equal(suite.T(), "invalid input", ErrInvalidInput.Error())
-	assert.Equal(suite.T(), "unauthorized", ErrUnauthorized.Error())
-	assert.Equal(suite.T(), "forbidden", ErrForbidden.Error())
-	assert.Equal(suite.T(), "internal error", ErrInternalError.Error())
-	assert.Equal(suite.T(), "validation failed", ErrValidationFailed.Error())
-	assert.Equal(suite.T(), "concurrency error", ErrConcurrencyError.Error())
+	assert.Equal(suite.T(), "resource not found", domainErrors.ErrNotFound.Error())
+	assert.Equal(suite.T(), "resource already exists", domainErrors.ErrAlreadyExists.Error())
+	assert.Equal(suite.T(), "invalid input", domainErrors.ErrInvalidInput.Error())
+	assert.Equal(suite.T(), "unauthorized", domainErrors.ErrUnauthorized.Error())
+	assert.Equal(suite.T(), "forbidden", domainErrors.ErrForbidden.Error())
+	assert.Equal(suite.T(), "internal error", domainErrors.ErrInternalError.Error())
+	assert.Equal(suite.T(), "validation failed", domainErrors.ErrValidationFailed.Error())
+	assert.Equal(suite.T(), "concurrency error", domainErrors.ErrConcurrencyError.Error())
 }
 
 func (suite *DomainErrorsTestSuite) TestDomainErrorChain() {
 	// Arrange
 	rootCause := errors.New("network error")
-	internalError := NewInternalError("Database connection failed", rootCause)
-	validationError := NewValidationError("email", "invalid format")
+	internalError := domainErrors.NewInternalError("Database connection failed", rootCause)
+	validationError := domainErrors.NewValidationError("email", "invalid format")
 	validationError.Cause = internalError
 
 	// Act
