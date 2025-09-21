@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Test files
+*_test.go
+tests/
+coverage.out
+coverage.html
+
+# Build artifacts
+build/
+dist/
+tmp/
+
+# Environment files
+.env*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.sql
+
+# Local data
+data/
+postgres-data/
+redis-data/
