@@ -31,6 +31,18 @@ func NewAuthHandler(userService user.Service, jwtService jwtService.Service, log
 }
 
 // Login autentica um usuário e retorna tokens JWT
+//
+//	@Summary		Autenticar usuário
+//	@Description	Autentica um usuário no sistema usando username/email e senha
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			loginRequest	body		requests.LoginRequest	true	"Dados de login"
+//	@Success		200			{object}	responses.LoginResponse	"Login realizado com sucesso"
+//	@Failure		400			{object}	map[string]string		"Requisição inválida"
+//	@Failure		401			{object}	map[string]string		"Credenciais inválidas"
+//	@Failure		500			{object}	map[string]string		"Erro interno do servidor"
+//	@Router			/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req requests.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
