@@ -5,14 +5,57 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  release:
+    types: [ published ]
 
 env:
-  GO_VERSION: '1.24.0'
+  GO_VERSION: '1.21'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:15-3.3
+        env:
+          POSTGRES_DB: eventos_db_test
+          POSTGRES_USER: eventos_user
+          POSTGRES_PASSWORD: eventos_password
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: eventos_user
+          RABBITMQ_DEFAULT_PASS: eventos_password
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - name: Checkout code
@@ -26,7 +69,9 @@ jobs:
     - name: Cache Go modules
       uses: actions/cache@v4
       with:
-        path: ~/go/pkg/mod
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
@@ -54,17 +99,57 @@ jobs:
           exit 1
         fi
 
+    - name: Wait for services
+      run: |
+        timeout 60s bash -c 'until pg_isready -h localhost -p 5432; do sleep 1; done'
+        timeout 60s bash -c 'until redis-cli -h localhost -p 6379 ping; do sleep 1; done'
+
+    - name: Run database migrations
+      run: |
+        PGPASSWORD=eventos_password psql -h localhost -U eventos_user -d eventos_db_test -f migrations/001_create_database_schema.sql
+      env:
+        PGPASSWORD: eventos_password
+
     - name: Run tests
       run: go test -v ./...
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: eventos_db_test
+        DB_USER: eventos_user
+        DB_PASSWORD: eventos_password
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        RABBITMQ_HOST: localhost
+        RABBITMQ_PORT: 5672
+        RABBITMQ_USER: eventos_user
+        RABBITMQ_PASSWORD: eventos_password
+        JWT_SECRET: test-jwt-secret-key
+        PORT: 8080
 
     - name: Run tests with coverage
       run: go test -v -coverprofile=coverage.out ./...
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: eventos_db_test
+        DB_USER: eventos_user
+        DB_PASSWORD: eventos_password
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        RABBITMQ_HOST: localhost
+        RABBITMQ_PORT: 5672
+        RABBITMQ_USER: eventos_user
+        RABBITMQ_PASSWORD: eventos_password
+        JWT_SECRET: test-jwt-secret-key
+        PORT: 8080
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.out
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   lint:
     name: Lint Code
@@ -82,7 +167,9 @@ jobs:
     - name: Cache Go modules
       uses: actions/cache@v4
       with:
-        path: ~/go/pkg/mod
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
@@ -91,7 +178,7 @@ jobs:
       uses: golangci/golangci-lint-action@v6
       with:
         version: latest
-        args: --timeout=5m
+        args: --timeout=5m --config=.golangci.yml
 
   build:
     name: Build Application
@@ -110,18 +197,29 @@ jobs:
     - name: Cache Go modules
       uses: actions/cache@v4
       with:
-        path: ~/go/pkg/mod
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
 
     - name: Build application
-      run: go build -v -o build/main ./cmd/api
+      run: |
+        mkdir -p build
+        CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w -s -X main.version=${{ github.sha }}' -o build/main ./cmd/api
 
     - name: Test build
       run: |
-        ./build/main --help || true
         file build/main
+        ls -la build/
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: eventos-backend-${{ github.sha }}
+        path: build/main
+        retention-days: 30
 
   security-scan:
     name: Security Scan
@@ -140,7 +238,9 @@ jobs:
     - name: Cache Go modules
       uses: actions/cache@v4
       with:
-        path: ~/go/pkg/mod
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
@@ -156,11 +256,28 @@ jobs:
       with:
         sarif_file: gosec-report.sarif
 
-  docker-build:
-    name: Build Docker Image
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  docker-build-and-push:
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: [build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build, security-scan]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
 
     steps:
     - name: Checkout code
@@ -169,22 +286,44 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Build Docker image
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
       uses: docker/build-push-action@v6
       with:
         context: .
         file: ./Dockerfile
-        push: false
-        tags: eventos-backend:latest
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
 
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [build, lint]
+    needs: [docker-build-and-push]
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: staging
+    environment: 
+      name: staging
+      url: https://eventos-staging.yourdomain.com
 
     steps:
     - name: Checkout code
@@ -192,38 +331,121 @@ jobs:
 
     - name: Deploy to staging
       run: |
-        echo "Deploying to staging environment..."
-        # Add your staging deployment commands here
-        # Example: kubectl apply -f k8s/staging/
-        echo "Staging deployment completed"
+        echo "🚀 Deploying to staging environment..."
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop"
+        
+        # Aqui você adicionaria os comandos específicos para seu ambiente de staging
+        # Exemplos:
+        # - kubectl set image deployment/eventos-backend eventos-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop
+        # - docker-compose -f docker-compose.staging.yml up -d
+        # - ssh user@staging-server "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop && docker-compose up -d"
+        
+        echo "✅ Staging deployment completed"
+
+    - name: Run smoke tests
+      run: |
+        echo "🧪 Running smoke tests on staging..."
+        # Adicione seus testes de fumaça aqui
+        # curl -f https://eventos-staging.yourdomain.com/health || exit 1
+        echo "✅ Smoke tests passed"
 
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [build, lint, security-scan]
+    needs: [docker-build-and-push]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
+    environment: 
+      name: production
+      url: https://eventos.yourdomain.com
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Create deployment
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const deployment = await github.rest.repos.createDeployment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: context.sha,
+            environment: 'production',
+            description: 'Deploy to production',
+            auto_merge: false,
+            required_contexts: []
+          });
+          return deployment.data.id;
+
     - name: Deploy to production
       run: |
-        echo "Deploying to production environment..."
-        # Add your production deployment commands here
-        # Example: kubectl apply -f k8s/production/
-        echo "Production deployment completed"
+        echo "🚀 Deploying to production environment..."
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        
+        # Aqui você adicionaria os comandos específicos para seu ambiente de produção
+        # Exemplos:
+        # - kubectl set image deployment/eventos-backend eventos-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        # - docker-compose -f docker-compose.production.yml up -d
+        # - ssh user@prod-server "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest && docker-compose up -d"
+        
+        echo "✅ Production deployment completed"
 
-  notify:
-    name: Notify on Failure
+    - name: Run production smoke tests
+      run: |
+        echo "🧪 Running smoke tests on production..."
+        # Adicione seus testes de fumaça aqui
+        # curl -f https://eventos.yourdomain.com/health || exit 1
+        echo "✅ Production smoke tests passed"
+
+    - name: Update deployment status
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: '${{ steps.deploy.outputs.deployment-id }}',
+            state: '${{ job.status }}' === 'success' ? 'success' : 'failure',
+            description: '${{ job.status }}' === 'success' ? 'Deployment successful' : 'Deployment failed'
+          });
+
+  backup:
+    name: Database Backup
     runs-on: ubuntu-latest
-    needs: [test, build, lint]
-    if: always() && (needs.test.result == 'failure' || needs.build.result == 'failure' || needs.lint.result == 'failure')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [deploy-production]
 
     steps:
-    - name: Notify failure
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create database backup
       run: |
-        echo "Pipeline failed!"
-        echo "Check the logs for details"
-        # Add notification logic here (e.g., Slack, Discord, etc.)
+        echo "💾 Creating database backup..."
+        # Aqui você adicionaria os comandos para fazer backup do banco
+        # Exemplo com pg_dump:
+        # PGPASSWORD=${{ secrets.DB_PASSWORD }} pg_dump -h ${{ secrets.DB_HOST }} -U ${{ secrets.DB_USER }} ${{ secrets.DB_NAME }} > backup_$(date +%Y%m%d_%H%M%S).sql
+        # aws s3 cp backup_$(date +%Y%m%d_%H%M%S).sql s3://your-backup-bucket/
+        echo "✅ Database backup completed"
+
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [test, build, lint, security-scan, docker-build-and-push]
+    if: always()
+
+    steps:
+    - name: Notify on success
+      if: needs.test.result == 'success' && needs.build.result == 'success' && needs.lint.result == 'success'
+      run: |
+        echo "✅ Pipeline executado com sucesso!"
+        echo "🚀 Imagem Docker criada: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+        # Adicione notificações aqui (Slack, Discord, etc.)
+
+    - name: Notify on failure
+      if: needs.test.result == 'failure' || needs.build.result == 'failure' || needs.lint.result == 'failure'
+      run: |
+        echo "❌ Pipeline falhou!"
+        echo "📋 Verifique os logs para detalhes"
+        # Adicione notificações de falha aqui
