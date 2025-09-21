@@ -1,0 +1,18 @@
+# Configurações do Banco de Dados
+database:
+  host: ${DB_HOST:localhost}
+  port: ${DB_PORT:5432}
+  name: ${DB_NAME:eventos_db}
+  user: ${DB_USER:eventos_user}
+  password: ${DB_PASSWORD:eventos_password}
+  ssl_mode: ${DB_SSL_MODE:disable}
+  
+  # Pool de conexões
+  max_open_conns: ${DB_MAX_OPEN_CONNS:25}
+  max_idle_conns: ${DB_MAX_IDLE_CONNS:5}
+  conn_max_lifetime: ${DB_CONN_MAX_LIFETIME:5m}
+  
+  # Timeouts
+  connect_timeout: ${DB_CONNECT_TIMEOUT:10s}
+  read_timeout: ${DB_READ_TIMEOUT:30s}
+  write_timeout: ${DB_WRITE_TIMEOUT:30s}

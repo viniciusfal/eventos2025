@@ -1,6 +1,7 @@
 package requests
 
 import (
+	. "eventos-backend/internal/application/dto/requests"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

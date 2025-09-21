@@ -54,7 +54,7 @@ func ErrorResponseMiddleware(logger *zap.Logger) gin.HandlerFunc {
 			// Log do erro
 			logger.Error("Handler error",
 				zap.Error(err.Err),
-				zap.String("type", string(err.Type)),
+				zap.String("type", fmt.Sprintf("%d", err.Type)),
 				zap.String("path", c.Request.URL.Path),
 				zap.String("method", c.Request.Method),
 				zap.String("ip", c.ClientIP()),

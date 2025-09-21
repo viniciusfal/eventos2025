@@ -1,0 +1,16 @@
+# Configurações do JWT
+jwt:
+  secret: ${JWT_SECRET:sua-chave-secreta-muito-forte}
+  issuer: ${JWT_ISSUER:eventos-backend}
+  audience: ${JWT_AUDIENCE:eventos-app}
+  
+  # Tempos de expiração
+  access_token_ttl: ${JWT_ACCESS_TOKEN_TTL:1h}
+  refresh_token_ttl: ${JWT_REFRESH_TOKEN_TTL:24h}
+  
+  # Algoritmo de assinatura
+  signing_method: ${JWT_SIGNING_METHOD:HS256}
+  
+  # Configurações de refresh
+  refresh_threshold: ${JWT_REFRESH_THRESHOLD:15m}
+  max_refresh_count: ${JWT_MAX_REFRESH_COUNT:5}

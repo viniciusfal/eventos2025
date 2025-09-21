@@ -14,6 +14,7 @@ import (
 	"eventos-backend/internal/domain/shared/value_objects"
 	"eventos-backend/internal/domain/user"
 	jwtService "eventos-backend/internal/infrastructure/auth/jwt"
+	. "eventos-backend/internal/interfaces/http/handlers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
